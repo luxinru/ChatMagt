@@ -46,7 +46,7 @@
 
         <div class="chat_container">
           <div class="item" v-for="index in 20" :key="index">
-            <img class="avatar" src="" alt="" />
+            <el-avatar class="avatar" :size="50" src="" />
             <div class="info">
               <span> +12242895750（1） </span>
               <span>It is a long established fact that a reader w...</span>
@@ -58,18 +58,27 @@
 
       <div class="content">
         <div class="content_header">
-          <img class="avatar" src="" alt="" />
-          <span> Jason Porter </span>
+          <el-avatar class="avatar" :size="40" src="" />
+          <span class="name"> Jason Porter </span>
         </div>
 
         <div class="content_chat">
-          <div class="item" v-for="index in 20" :key="index">
-            <img class="avatar" src="" alt="">
+          <div
+            class="item"
+            v-for="index in 20"
+            :key="index"
+            :class="{ fanzhuan: index % 2 }"
+          >
+            <el-avatar v-if="!(index % 2)" class="avatar" :size="26" src="" />
             <div class="info">
               <span class="name">
                 Jason Porter,2023-03-22 10:28:56
-                <img src="" alt="">
+                <img src="" alt="" />
               </span>
+
+              <div class="info_chat">
+                Hope to have a chance to have lunch together next time ☺
+              </div>
             </div>
           </div>
         </div>
@@ -220,12 +229,6 @@ export default {
         }
       }
 
-      .elinput {
-        /deep/ .el-input__wrapper.is-focus {
-          box-shadow: 0 0 0 1px #21aa93 inset !important;
-        }
-      }
-
       .tip {
         width: 100%;
         height: 50px;
@@ -270,13 +273,7 @@ export default {
           }
 
           .avatar {
-            width: 50px;
-            height: 50px;
             margin-right: 1rem;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 1px solid red;
-            flex-shrink: 0;
           }
 
           .info {
@@ -330,15 +327,10 @@ export default {
         align-items: center;
 
         .avatar {
-          width: 40px;
-          height: 40px;
           margin-right: 1rem;
-          border-radius: 50%;
-          overflow: hidden;
-          border: 1px solid red;
         }
 
-        span {
+        .name {
           flex: 1 0;
           height: 40px;
           display: flex;
@@ -353,7 +345,7 @@ export default {
         width: 100%;
         flex: 1 0;
         overflow-y: scroll;
-        padding: 0 3rem;
+        padding: 0 3rem 1rem;
         display: flex;
         flex-direction: column-reverse;
 
@@ -367,12 +359,51 @@ export default {
           width: 60%;
 
           .avatar {
-            width: 26px;
-            height: 26px;
             margin-right: 0.5rem;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 1px solid red;
+          }
+
+          .info {
+            width: max-content;
+            display: flex;
+            flex-direction: column;
+
+            .name {
+              font-size: 12px;
+              color: #95aac9;
+              margin: 0 0 5px;
+              display: flex;
+              align-items: center;
+            }
+
+            .info_chat {
+              width: max-content;
+              background-color: #f5f5f5;
+              max-width: 100%;
+              min-width: 10%;
+              border-radius: 0 15px 15px 15px;
+              font-size: 16px;
+              padding: 1rem;
+              color: #626569;
+            }
+          }
+        }
+
+        .fanzhuan {
+          flex-direction: row-reverse;
+          align-self: flex-end;
+
+          .avatar {
+            margin-right: 0;
+            margin-left: 1rem;
+          }
+
+          .info {
+            .name {
+              justify-content: flex-end;
+            }
+            .info_chat {
+              border-radius: 15px 0 15px 15px;
+            }
           }
         }
       }
@@ -382,10 +413,6 @@ export default {
         background-color: #f5f5f5;
         display: flex;
         align-items: center;
-
-        /deep/ .el-input__wrapper.is-focus {
-          box-shadow: 0 0 0 1px #21aa93 inset !important;
-        }
 
         .btn {
           margin-left: 1rem;
