@@ -1,8 +1,8 @@
 import http from './axios'
 
-function test (params) {
+function getDeviceList (params) {
   return http({
-    url: '/api/list',
+    url: '/device-list',
     method: 'get',
     params
   })
@@ -17,6 +17,6 @@ function login (params) {
 }
 
 export {
-  test,
+  getDeviceList,
   login
 }

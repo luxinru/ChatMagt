@@ -24,7 +24,12 @@
     <div class="container">
       <div class="chats">
         <div class="chat_header">
-          <el-select v-model="value" class="elselect" placeholder="Select">
+          <el-select
+            v-model="value"
+            clearable
+            class="elselect"
+            placeholder="所有设备"
+          >
             <el-option
               v-for="item in options"
               :key="item.value"
@@ -47,12 +52,12 @@
         </div>
 
         <div class="chat_container">
-          <div class="item" v-for="index in 20" :key="index">
+          <div class="item" v-for="(item, index) in contractList" :key="index">
             <el-avatar class="avatar" :size="50" src="" />
             <div class="info">
-              <span> +12242895750（1） </span>
-              <span>It is a long established fact that a reader w...</span>
-              <span> 2023-03-22 10:28:56 </span>
+              <span> {{ item[0].address }}（{{ item.length }}） </span>
+              <span>{{ item[0].body }}</span>
+              <span> {{ item[0].date }} </span>
             </div>
           </div>
         </div>
@@ -159,10 +164,13 @@
 </template>
 
 <script setup>
+import { Search } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 </script>
 
 <script>
+import { getDeviceList } from '@/api'
+import { groupBy } from 'lodash'
 export default {
   name: 'Home',
 
@@ -176,43 +184,51 @@ export default {
       isShowDialogForm: false,
       isShowDrawer: false,
       input: '',
-      value: 'Option1',
-      options: [
-        {
-          value: 'Option1',
-          label: '所有设备'
-        },
-        {
-          value: 'Option2',
-          label: 'Option2'
-        },
-        {
-          value: 'Option3',
-          label: 'Option3'
-        },
-        {
-          value: 'Option4',
-          label: 'Option4'
-        },
-        {
-          value: 'Option5',
-          label: 'Option5'
-        }
-      ],
-      socket: null
+      value: '',
+      options: [],
+      socket: null,
+      list: [],
+      contractList: {}
     }
   },
 
   created () {
     this.socket = new WebSocket(
-      'ws://103.233.8.101:3001/socket.io/?EIO=4&transport=websocket'
+      'ws://47.243.207.73:3001/socket.io/?EIO=4&transport=websocket'
     )
   },
 
   mounted () {
-    this.socket.addEventListener('message', function (event) {
+    this.init()
+    // 监听WebSocket连接打开事件
+    this.socket.addEventListener('open', (event) => {
+      console.log('WebSocket连接已打开')
+    })
+
+    // 监听WebSocket连接关闭事件
+    this.socket.addEventListener('close', (event) => {
+      console.log('WebSocket连接已关闭')
+    })
+
+    this.socket.addEventListener('message', (event) => {
       // 收到了一条消息
-      console.log('Received message: ', event)
+      let str = event.data
+      str = str.substr(0, 3)
+      if (str.indexOf('0{"') > -1) {
+        this.socket.send('40')
+      } else if (str === '40{') {
+        this.socket.send(
+          '42["web->android",{"type":"recent-sms","timestamp":"1679588742","sign":"84b4e938d3b7fc557a4775b7dc205976","device":"web"},null]'
+        )
+      } else if (str === '2') {
+        this.socket.send('3')
+      } else if (str.indexOf('42[') > -1) {
+      } else {
+        const dataStr = event.data.substr(9, event.data.length)
+        const data = JSON.parse(dataStr)
+        console.log('data :>> ', data)
+        this.formatData(data[1])
+      }
     })
   },
 
@@ -221,6 +237,31 @@ export default {
   },
 
   methods: {
+    formatData (obj) {
+      const dataList = obj.data.map((item) => {
+        return {
+          ...item,
+          device_id: obj.device_id
+        }
+      })
+      this.list = this.list.concat(dataList)
+      const objList = groupBy(this.list, 'address')
+      this.contractList = objList
+    },
+    async init () {
+      const res = await getDeviceList()
+      this.options = []
+      if (res.status) {
+        this.options = res.data.map((item) => {
+          return {
+            value: item.device_id,
+            label: item.device_name,
+            ...item
+          }
+        })
+      }
+      console.log('res :>> ', res)
+    },
     onOpenMsg () {
       this.isShowDrawer = true
     },
