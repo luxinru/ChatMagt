@@ -6,7 +6,9 @@
 
       <div class="info">
         <el-badge :value="12" class="item">
-          <el-icon color="#21aa93" size="24px"><ChatLineSquare /></el-icon>
+          <el-icon color="#21aa93" size="24px" @click="onOpenMsg"
+            ><ChatLineSquare
+          /></el-icon>
         </el-badge>
 
         <el-popover placement="bottom" :width="100" trigger="click">
@@ -30,7 +32,7 @@
               :value="item.value"
             />
           </el-select>
-          <div class="btn">新建短信</div>
+          <div class="btn" @click="isShowDialogForm = true">新建短信</div>
         </div>
         <el-input
           v-model="input"
@@ -73,7 +75,7 @@
             <div class="info">
               <span class="name">
                 Jason Porter,2023-03-22 10:28:56
-                <img src="" alt="" />
+                <img src="@/assets/发送成功.png" alt="" />
               </span>
 
               <div class="info_chat">
@@ -89,6 +91,70 @@
         </div>
       </div>
     </div>
+
+    <el-drawer v-model="isShowDrawer" :with-header="false" class="drawer">
+      <div class="drawer_container">
+        <div class="item" v-for="index in 20" :key="index">
+          <div class="item_header">
+            <span>+15083260553</span>
+            <span>2023-03-23 09:14:59</span>
+          </div>
+          <div class="item_content">
+            【服务器w2】I think u have the wrong number【服务器w2】I think u
+            have the wrong number【服务器w2】I think u have the wrong number
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer_footer">
+        <el-button class="btn" type="primary" size="large" style="width: 100%"
+          >清空</el-button
+        >
+      </div>
+    </el-drawer>
+
+    <el-dialog v-model="isShowDialogForm" title="发送短信" style="width: 600px">
+      <el-form :model="form">
+        <el-form-item label="安卓设备">
+          <el-select
+            v-model="form.device"
+            clearable
+            placeholder="请选择安卓设备"
+            style="width: 100%"
+          >
+            <el-option label="Zone No.1" value="shanghai" />
+            <el-option label="Zone No.2" value="beijing" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="对方号码">
+          <el-input
+            v-model="form.phone"
+            clearable
+            autocomplete="off"
+            placeholder="请输入对方号码"
+          />
+        </el-form-item>
+        <el-form-item label="短信内容">
+          <el-input
+            v-model="form.content"
+            clearable
+            type="textarea"
+            resize="none"
+            :rows="5"
+            autocomplete="off"
+            placeholder="请输入短信内容"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="isShowDialogForm = false">取消</el-button>
+          <el-button type="primary" @click="isShowDialogForm = false">
+            确定
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -102,6 +168,13 @@ export default {
 
   data () {
     return {
+      form: {
+        device: '',
+        phone: '',
+        content: ''
+      },
+      isShowDialogForm: false,
+      isShowDrawer: false,
       input: '',
       value: 'Option1',
       options: [
@@ -126,6 +199,12 @@ export default {
           label: 'Option5'
         }
       ]
+    }
+  },
+
+  methods: {
+    onOpenMsg () {
+      this.isShowDrawer = true
     }
   }
 }
@@ -373,6 +452,11 @@ export default {
               margin: 0 0 5px;
               display: flex;
               align-items: center;
+
+              img {
+                height: 12px;
+                margin-left: 5px;
+              }
             }
 
             .info_chat {
@@ -422,6 +506,71 @@ export default {
           background-color: #21aa93;
         }
       }
+    }
+  }
+
+  .drawer {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .drawer_container {
+      width: 100%;
+      flex: 1 0;
+      overflow-y: auto;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      .item {
+        padding: 0 0 1rem;
+        display: flex;
+        flex-direction: column;
+        margin-top: 1rem;
+        border-bottom: 1px solid #f5f5f5;
+
+        &:first-child {
+          margin-top: 0;
+        }
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .item_header {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          span {
+            &:first-child {
+              font-weight: bold;
+              font-size: 14px;
+              color: #000;
+            }
+
+            &:last-child {
+              color: #95aac9;
+              font-size: 12px;
+            }
+          }
+        }
+
+        .item_content {
+          margin-top: 0.5rem;
+          font-size: 14px;
+          color: #626569;
+        }
+      }
+    }
+
+    .drawer_footer {
+      position: sticky;
+      bottom: 0;
+      width: 100%;
+      padding: 1rem 0 0;
     }
   }
 }

@@ -3,24 +3,30 @@
     <div class="animated bounceInDown">
       <div class="container">
         <span class="error animated tada" id="msg"></span>
-        <form name="form1" class="box" onsubmit="return checkStuff()">
+        <form name="form1" class="box">
           <h4>Android设备</h4>
           <h5>管理平台</h5>
           <input
+            v-model="username"
             type="text"
             name="email"
             placeholder="Email"
             autocomplete="off"
           />
-          <i class="typcn typcn-eye" id="eye"></i>
+          <i
+            class="typcn typcn-eye"
+            id="eye"
+            @click="isShowPwd = !isShowPwd"
+          ></i>
           <input
-            type="password"
+            v-model="password"
+            :type="isShowPwd ? 'text' : 'password'"
             name="password"
             placeholder="Passsword"
             id="pwd"
             autocomplete="off"
           />
-          <input type="submit" value="登录" class="btn1" />
+          <input type="submit" value="登录" class="btn1" @click="onSubmit" />
         </form>
       </div>
     </div>
@@ -28,9 +34,30 @@
 </template>
 
 <script>
+import { login } from '@/api'
+
 export default {
   name: 'Login',
-  components: {}
+  components: {},
+
+  data () {
+    return {
+      isShowPwd: false,
+      username: '',
+      password: ''
+    }
+  },
+
+  methods: {
+    async onSubmit () {
+      const { data } = await login({
+        username: this.username,
+        password: this.password
+      })
+
+      console.log('data :>> ', data)
+    }
+  }
 }
 </script>
 
@@ -169,7 +196,7 @@ label span {
 
 .typcn {
   position: absolute;
-  left: 339px;
+  left: 330px;
   top: 282px;
   color: #3b476b;
   font-size: 22px;
