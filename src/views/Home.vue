@@ -16,7 +16,7 @@
             <span>admin</span>
           </template>
 
-          <div class="exit">退出登陆</div>
+          <div class="exit" @click="onExit">退出登陆</div>
         </el-popover>
       </div>
     </div>
@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { Search } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 </script>
 
 <script>
@@ -198,13 +198,41 @@ export default {
           value: 'Option5',
           label: 'Option5'
         }
-      ]
+      ],
+      socket: null
     }
+  },
+
+  created () {
+    this.socket = new WebSocket(
+      'ws://103.233.8.101:3001/socket.io/?EIO=4&transport=websocket'
+    )
+  },
+
+  mounted () {
+    this.socket.addEventListener('message', function (event) {
+      // 收到了一条消息
+      console.log('Received message: ', event)
+    })
+  },
+
+  beforeUnmount () {
+    this.socket.close()
   },
 
   methods: {
     onOpenMsg () {
       this.isShowDrawer = true
+    },
+
+    onExit () {
+      ElMessageBox.confirm('退出登录', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }).then(() => {
+        this.$router.replace('login')
+      })
     }
   }
 }

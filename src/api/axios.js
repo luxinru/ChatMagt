@@ -11,7 +11,7 @@ const LoadingInstance = {
 
 function myAxios (axiosConfig, options, loadingOptions) {
   const service = axios.create({
-    baseURL: 'http://103.233.8.101:3001', // 设置统一的请求前缀
+    // baseURL: 'http://103.233.8.101:3001', // 设置统一的请求前缀
     timeout: 10000 // 设置统一的超时时长
   })
 

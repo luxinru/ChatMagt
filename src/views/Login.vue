@@ -1,33 +1,35 @@
 <template>
-  <div class="particles-js">
-    <div class="animated bounceInDown">
-      <div class="container">
-        <span class="error animated tada" id="msg"></span>
-        <form name="form1" class="box">
-          <h4>Android设备</h4>
-          <h5>管理平台</h5>
-          <input
-            v-model="username"
-            type="text"
-            name="email"
-            placeholder="Email"
-            autocomplete="off"
-          />
-          <i
-            class="typcn typcn-eye"
-            id="eye"
-            @click="isShowPwd = !isShowPwd"
-          ></i>
-          <input
-            v-model="password"
-            :type="isShowPwd ? 'text' : 'password'"
-            name="password"
-            placeholder="Passsword"
-            id="pwd"
-            autocomplete="off"
-          />
-          <input type="submit" value="登录" class="btn1" @click="onSubmit" />
-        </form>
+  <div class="page_root">
+    <div class="particles-js">
+      <div class="animated bounceInDown">
+        <div class="container">
+          <span class="error animated tada" id="msg"></span>
+          <form name="form1" class="box">
+            <h4>Android设备</h4>
+            <h5>管理平台</h5>
+            <input
+              v-model="username"
+              type="text"
+              name="email"
+              placeholder="Email"
+              autocomplete="off"
+            />
+            <i
+              class="typcn typcn-eye"
+              id="eye"
+              @click="isShowPwd = !isShowPwd"
+            ></i>
+            <input
+              v-model="password"
+              :type="isShowPwd ? 'text' : 'password'"
+              name="password"
+              placeholder="Passsword"
+              id="pwd"
+              autocomplete="off"
+            />
+            <div type="submit" class="btn1" @click="onSubmit">登录</div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -35,6 +37,8 @@
 
 <script>
 import { login } from '@/api'
+import cryptoJs from 'crypto-js'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'Login',
@@ -50,18 +54,32 @@ export default {
 
   methods: {
     async onSubmit () {
-      const { data } = await login({
+      const pwd = cryptoJs.MD5(this.password)
+      const res = await login({
         username: this.username,
-        password: this.password
+        password: pwd.toString()
       })
 
-      console.log('data :>> ', data)
+      if (res.status) {
+        ElMessage({
+          message: '登陆成功',
+          type: 'success'
+        })
+        this.$router.push('/home')
+      } else {
+        ElMessage({
+          message: res.msg,
+          type: 'error'
+        })
+      }
+
+      console.log('data :>> ', res)
     }
   }
 }
 </script>
 
-<style>
+<style scoped>
 /* CSS Libraries Used
 
 *Animate.css by Daniel Eden.
@@ -72,12 +90,13 @@ export default {
 
 @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400');
 
-body,
-html {
+.page_root {
   font-family: 'Source Sans Pro', sans-serif;
   background-color: #1d243d;
   padding: 0;
   margin: 0;
+  width: 100%;
+  height: 100%;
 }
 
 #particles-js {
@@ -188,6 +207,9 @@ label span {
   left: 8%;
   transition: 0.3s;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn1:hover {
