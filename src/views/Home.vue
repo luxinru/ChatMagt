@@ -5,6 +5,13 @@
       <span class="left"> Android 设备管理平台 </span>
 
       <div class="info">
+        <img
+          class="chart"
+          src="@/assets/24gf-chartBarUpward.png"
+          alt=""
+          @click="isShowChart = true"
+        />
+
         <el-badge :value="12" class="item">
           <el-icon color="#21aa93" size="24px" @click="onOpenMsg"
             ><ChatLineSquare
@@ -190,6 +197,31 @@
         </span>
       </template>
     </el-dialog>
+
+    <el-drawer
+      v-model="isShowChart"
+      custom-class="chart_drawer"
+      title="数据统计"
+      direction="ttb"
+      size="100%"
+    >
+      <div class="chart_drawer_container">
+        <el-select
+          v-model="sort"
+          size="large"
+          style="width: max-content"
+          @change="initChart"
+        >
+          <el-option
+            v-for="item in sortOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <div id="chart" class="chart"></div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -200,15 +232,27 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 
 <script>
 import { getDeviceList, tanslate } from '@/api'
-import { groupBy } from 'lodash'
+import { groupBy, orderBy } from 'lodash'
 import moment from 'moment'
 import cryptoJs from 'crypto-js'
+import * as echarts from 'echarts'
 
 export default {
   name: 'Home',
 
   data () {
     return {
+      sort: 1,
+      sortOptions: [
+        {
+          value: 1,
+          label: '按打招呼排序'
+        },
+        {
+          value: 2,
+          label: '按收到回复排序'
+        }
+      ],
       form: {
         device: '',
         phone: '',
@@ -216,6 +260,7 @@ export default {
       },
       isShowDialogForm: false,
       isShowDrawer: false,
+      isShowChart: false,
       input: '',
       value: '',
       options: [],
@@ -234,6 +279,16 @@ export default {
           .filter((item) => item.device_id.indexOf(this.value) > -1),
         'address'
       )
+    }
+  },
+
+  watch: {
+    isShowChart () {
+      if (this.isShowChart) {
+        this.$nextTick(() => {
+          this.initChart()
+        })
+      }
     }
   },
 
@@ -282,6 +337,102 @@ export default {
 
   methods: {
     moment,
+
+    initChart () {
+      const obj = groupBy(this.list, 'address')
+      let arr = []
+
+      for (const key in obj) {
+        const element = obj[key]
+
+        const tempArr = element.filter((item) => item.type === '2')
+        arr.push({
+          name: key,
+          reply: tempArr.length || 0,
+          greet: element.length - tempArr.length
+        })
+      }
+
+      if (this.sort === 1) {
+        arr = orderBy(arr, 'greet', 'desc')
+      } else {
+        arr = orderBy(arr, 'reply', 'desc')
+      }
+
+      echarts.dispose(document.getElementById('chart'))
+      // 基于准备好的dom，初始化echarts实例
+      const myChart = echarts.init(document.getElementById('chart'))
+      // 绘制图表
+      myChart.setOption({
+        tooltip: {
+          trigger: 'axis'
+        },
+        legend: {
+          top: 0
+        },
+        xAxis: [
+          {
+            type: 'value',
+            min: 0,
+            position: 'top',
+            minInterval: 1
+          }
+        ],
+        yAxis: [
+          {
+            type: 'category',
+            data: arr.map((item) => item.name),
+            inverse: true
+          }
+        ],
+        dataZoom: [
+          {
+            show: arr.length > 4,
+            right: '3%',
+            width: 16,
+            startValue: 0,
+            endValue: 4,
+            maxValueSpan: 4,
+            brushSelect: false, // 是否开启刷选功能
+            orient: 'vertical',
+            backgroundColor: 'transparent',
+            showDataShadow: false,
+            fillerColor: 'rgba(64, 83, 133, 0.8)'
+          },
+          {
+            zoomLock: true, // 这个开启之后只能通过鼠标左右拉动，不能滚动显示
+            type: 'inside',
+            orient: 'vertical'
+          }
+        ],
+        series: [
+          {
+            name: '打招呼数',
+            type: 'bar',
+            barWidth: 40,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#35EB81' },
+                { offset: 1, color: 'rgba(53,235,129,.2)' }
+              ])
+            },
+            data: arr.map((item) => item.greet)
+          },
+          {
+            name: '收到回复数',
+            type: 'bar',
+            barWidth: 40,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#32C1FF' },
+                { offset: 1, color: 'rgba(17,75,183,0.20)' }
+              ])
+            },
+            data: arr.map((item) => item.reply)
+          }
+        ]
+      })
+    },
 
     generateSalt (length) {
       var chars =
@@ -385,6 +536,25 @@ export default {
   display: flex;
   flex-direction: column;
 
+  .chart_drawer {
+    display: flex;
+    flex-direction: column;
+
+    .chart_drawer_container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+
+      .chart {
+        width: 100%;
+        flex: 1 0;
+        margin-top: 1rem;
+      }
+    }
+  }
+
   .header {
     width: 100%;
     height: 50px;
@@ -404,6 +574,13 @@ export default {
     .info {
       display: flex;
       align-items: center;
+
+      .chart {
+        height: 22px;
+        margin-right: 1rem;
+        margin-bottom: 5px;
+        cursor: pointer;
+      }
 
       i {
         cursor: pointer;
