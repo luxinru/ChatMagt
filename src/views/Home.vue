@@ -129,7 +129,14 @@
 
         <div class="content_footer">
           <el-input v-model="input" placeholder="请输入内容" size="large" />
-          <el-button class="btn" type="primary" size="large">发送</el-button>
+          <el-button
+            class="btn"
+            type="primary"
+            size="large"
+            :disabled="!currentContract.length"
+          >
+            发送
+          </el-button>
         </div>
       </div>
     </div>
@@ -312,17 +319,18 @@ export default {
 
     this.socket.addEventListener('message', (event) => {
       // 收到了一条消息
-      let str = event.data
-      str = str.substr(0, 3)
-      if (str.indexOf('0{"') > -1) {
+      const str = event.data
+      if (str.indexOf('0{"sid"') > -1 && str.indexOf('40{"sid"') === -1) {
         this.socket.send('40')
-      } else if (str === '40{') {
+      } else if (str.indexOf('40{"sid"') > -1) {
+        const date = new Date()
         this.socket.send(
-          '42["web->android",{"type":"recent-sms","timestamp":"1679588742","device":"web"},null]'
+          `42["web->android",{"type":"recent-sms","timestamp":"${
+            date.getTime() / 1000
+          }","device":"web"},null]`
         )
       } else if (str === '2') {
         this.socket.send('3')
-      } else if (str.indexOf('42[') > -1) {
       } else {
         const dataStr = event.data.substr(9, event.data.length)
         const data = JSON.parse(dataStr)
