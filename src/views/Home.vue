@@ -146,13 +146,13 @@
       <div class="drawer_container">
         <div class="item" v-for="(item, index) in newMgsList" :key="index">
           <div class="item_header">
-            <span>{{ item.address }}</span>
+            <span>{{ item[1].address }}</span>
             <span>
-              {{ moment(Number(item.date)).format('YYYY-MM-DD HH:mm:ss') }}
+              {{ moment(Number(item[1].date)).format('YYYY-MM-DD HH:mm:ss') }}
             </span>
           </div>
           <div class="item_content">
-            【{{ item.device_name }}】 {{ item.body }}
+            【{{ item.device_name }}】 {{ item[1].body }}
           </div>
         </div>
 
@@ -359,7 +359,7 @@ export default {
         const dataStr = event.data.substr(2, event.data.length)
         const data = JSON.parse(dataStr)
         if (data[1].sms) {
-          this.newMgsList.push(data[1].sms)
+          this.newMgsList.push(data[1])
 
           ElNotification({
             title: '新消息通知',
