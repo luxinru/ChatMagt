@@ -12,10 +12,10 @@
           @click="isShowChart = true"
         />
 
-        <el-badge :value="12" class="item">
-          <el-icon color="#21aa93" size="24px" @click="onOpenMsg"
-            ><ChatLineSquare
-          /></el-icon>
+        <el-badge :value="newMgsList.length" class="item">
+          <el-icon color="#21aa93" size="24px" @click="onOpenMsg">
+            <ChatLineSquare />
+          </el-icon>
         </el-badge>
 
         <el-popover placement="bottom" :width="100" trigger="click">
@@ -47,7 +47,7 @@
           <div class="btn" @click="isShowDialogForm = true">新建短信</div>
         </div>
         <el-input
-          v-model="input"
+          v-model="searchInput"
           class="elinput"
           placeholder="请输入关键字"
           :prefix-icon="Search"
@@ -134,6 +134,7 @@
             type="primary"
             size="large"
             :disabled="!currentContract.length"
+            @click="onSendMsg"
           >
             发送
           </el-button>
@@ -143,22 +144,29 @@
 
     <el-drawer v-model="isShowDrawer" :with-header="false" class="drawer">
       <div class="drawer_container">
-        <div class="item" v-for="index in 20" :key="index">
+        <div class="item" v-for="(item, index) in newMgsList" :key="index">
           <div class="item_header">
-            <span>+15083260553</span>
-            <span>2023-03-23 09:14:59</span>
+            <span>{{ item.address }}</span>
+            <span>
+              {{ moment(Number(item.date)).format('YYYY-MM-DD HH:mm:ss') }}
+            </span>
           </div>
           <div class="item_content">
-            【服务器w2】I think u have the wrong number【服务器w2】I think u
-            have the wrong number【服务器w2】I think u have the wrong number
+            【{{ item.device_name }}】 {{ item.body }}
           </div>
         </div>
-      </div>
 
-      <div class="drawer_footer">
-        <el-button class="btn" type="primary" size="large" style="width: 100%"
-          >清空</el-button
-        >
+        <div class="drawer_footer">
+          <el-button
+            class="btn"
+            type="primary"
+            size="large"
+            style="width: 100%"
+            @click="onClearMsg"
+          >
+            清空
+          </el-button>
+        </div>
       </div>
     </el-drawer>
 
@@ -171,8 +179,12 @@
             placeholder="请选择安卓设备"
             style="width: 100%"
           >
-            <el-option label="Zone No.1" value="shanghai" />
-            <el-option label="Zone No.2" value="beijing" />
+            <el-option
+              v-for="item in options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="对方号码">
@@ -180,7 +192,7 @@
             v-model="form.phone"
             clearable
             autocomplete="off"
-            placeholder="请输入对方号码"
+            placeholder="多个号码用#号分开"
           />
         </el-form-item>
         <el-form-item label="短信内容">
@@ -198,9 +210,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="isShowDialogForm = false">取消</el-button>
-          <el-button type="primary" @click="isShowDialogForm = false">
-            确定
-          </el-button>
+          <el-button type="primary" @click="onSendMsgs"> 确定 </el-button>
         </span>
       </template>
     </el-dialog>
@@ -234,7 +244,12 @@
 
 <script setup>
 import { Search } from '@element-plus/icons-vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
+import {
+  ElMessageBox,
+  ElMessage,
+  ElLoading,
+  ElNotification
+} from 'element-plus'
 </script>
 
 <script>
@@ -249,6 +264,7 @@ export default {
 
   data () {
     return {
+      searchInput: '',
       sort: 1,
       sortOptions: [
         {
@@ -274,7 +290,8 @@ export default {
       socket: null,
       list: [],
       currentContract: [],
-      img: require('@/assets/3ea6beec64369c2642b92c6726f1epng.png')
+      img: require('@/assets/3ea6beec64369c2642b92c6726f1epng.png'),
+      newMgsList: []
     }
   },
 
@@ -282,7 +299,7 @@ export default {
     formatList () {
       return groupBy(
         this.list
-          .filter((item) => item.address.indexOf(this.input) > -1)
+          .filter((item) => item.address.indexOf(this.searchInput) > -1)
           .filter((item) => item.device_id.indexOf(this.value) > -1),
         'address'
       )
@@ -320,18 +337,42 @@ export default {
     this.socket.addEventListener('message', (event) => {
       // 收到了一条消息
       const str = event.data
+      /**
+       * 首次反馈
+       */
       if (str.indexOf('0{"sid"') > -1 && str.indexOf('40{"sid"') === -1) {
         this.socket.send('40')
       } else if (str.indexOf('40{"sid"') > -1) {
-        const date = new Date()
-        this.socket.send(
-          `42["web->android",{"type":"recent-sms","timestamp":"${
-            date.getTime() / 1000
-          }","device":"web"},null]`
-        )
+        /**
+         * 获取最近消息
+         */
+        this.reSendMgs()
       } else if (str === '2') {
+        /**
+         * 保持连接
+         */
         this.socket.send('3')
-      } else {
+      } else if (str.indexOf('42["web",{"sms"') > -1) {
+        /**
+         * 新消息
+         */
+        const dataStr = event.data.substr(2, event.data.length)
+        const data = JSON.parse(dataStr)
+        if (data[1].sms) {
+          this.newMgsList.push(data[1].sms)
+
+          ElNotification({
+            title: '新消息通知',
+            message: `<strong>设备:</strong><span>${data[1].device_name}</span><br/><strong>号码:</strong><span>${data[1].sms.address}</span><br/><strong>内容:</strong><span>${data[1].sms.body}</span>`,
+            duration: 3000,
+            dangerouslyUseHTMLString: true,
+            type: 'success'
+          })
+        }
+      } else if (str.indexOf('[') === 9) {
+        /**
+         * 最新数据
+         */
         const dataStr = event.data.substr(9, event.data.length)
         const data = JSON.parse(dataStr)
         this.formatData(data[1])
@@ -345,6 +386,69 @@ export default {
 
   methods: {
     moment,
+
+    onClearMsg () {
+      this.newMgsList = []
+      this.isShowDrawer = false
+    },
+
+    onSendMsgs () {
+      this.sendMsg(this.form.phone, this.form.device, this.form.content)
+      this.form = {
+        device: '',
+        phone: '',
+        content: ''
+      }
+      this.isShowDialogForm = false
+    },
+
+    onSendMsg () {
+      this.sendMsg(
+        this.currentContract[0].address,
+        this.currentContract[0].device_id,
+        this.input
+      )
+      this.input = ''
+    },
+
+    reSendMgs () {
+      this.list = []
+      const date = new Date()
+      this.socket.send(
+        `42["web->android",{"type":"recent-sms","timestamp":"${
+          date.getTime() / 1000
+        }","device":"web"},null]`
+      )
+    },
+
+    sendMsg (phones, deviceId, msg) {
+      const loading = ElLoading.service({
+        lock: true,
+        text: 'Loading',
+        background: 'rgba(0, 0, 0, 0.7)'
+      })
+
+      const arr = phones.split('#')
+
+      arr.forEach((item) => {
+        const date = new Date()
+        this.socket.send(
+          `42["web->android",{"type":"send-sms","timestamp":"${
+            date.getTime() / 1000
+          }","device":"web", "body": "${msg}", "address": "${item}", "device_id": "${deviceId}"},null]`
+        )
+      })
+
+      ElMessage({
+        message: '发送成功',
+        type: 'success'
+      })
+
+      setTimeout(() => {
+        this.reSendMgs()
+        loading.close()
+      }, 1000 * 3)
+    },
 
     initChart () {
       const obj = groupBy(this.list, 'address')
@@ -477,6 +581,7 @@ export default {
     },
 
     onRefres () {
+      this.reSendMgs()
       ElMessage({
         message: '刷新成功',
         type: 'success'
@@ -495,6 +600,17 @@ export default {
         }
       })
       this.list = this.list.concat(dataList)
+
+      if (this.currentContract.length) {
+        const arr = this.list.filter(
+          (item) => item.address === this.currentContract[0].address
+        )
+        const dateArr = this.currentContract.map((item) => item.date)
+        const list = this.currentContract.concat(
+          arr.filter((item) => dateArr.indexOf(item.date) === -1)
+        )
+        this.currentContract = orderBy(list, 'date', 'desc')
+      }
     },
     async init () {
       const res = await getDeviceList()
@@ -883,13 +999,16 @@ export default {
   }
 
   .drawer {
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 
     .drawer_container {
+      position: relative;
       width: 100%;
-      flex: 1 0;
+      height: 100%;
+      padding-bottom: calc(40px + 1rem);
       overflow-y: auto;
 
       &::-webkit-scrollbar {
@@ -937,13 +1056,13 @@ export default {
           color: #626569;
         }
       }
-    }
 
-    .drawer_footer {
-      position: sticky;
-      bottom: 0;
-      width: 100%;
-      padding: 1rem 0 0;
+      .drawer_footer {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        padding: 1rem 0 0;
+      }
     }
   }
 }
