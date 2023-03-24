@@ -63,15 +63,19 @@
             v-for="(item, index) in formatList"
             :key="index"
             class="item"
-            :class="{ active: currentContract[0]?.address === item[0].address }"
+            :class="{ active: currentContract.address === item.address }"
             @click="onContractClick(item)"
           >
             <el-avatar class="avatar" :size="50" :src="img" />
             <div class="info">
-              <span> {{ item[0].address }}（{{ item.length }}） </span>
-              <span>{{ item[0].body }}</span>
+              <span> {{ item.address }}（{{ item.child.length }}） </span>
+              <span>{{ item.child[0].body }}</span>
               <span>
-                {{ moment(Number(item[0].date)).format('YYYY-MM-DD HH:mm:ss') }}
+                {{
+                  moment(Number(item.child[0].date)).format(
+                    'YYYY-MM-DD HH:mm:ss'
+                  )
+                }}
               </span>
             </div>
           </div>
@@ -80,16 +84,16 @@
 
       <div class="content">
         <div class="content_container">
-          <template v-if="currentContract.length">
+          <template v-if="currentContract.child?.length">
             <div class="content_header">
               <el-avatar class="avatar" :size="40" :src="img" />
-              <span class="name"> {{ currentContract[0].address }} </span>
+              <span class="name"> {{ currentContract.address }} </span>
             </div>
 
             <div class="content_chat">
               <div
                 class="item"
-                v-for="(item, index) in currentContract"
+                v-for="(item, index) in currentContract.child"
                 :key="index"
                 :class="{ fanzhuan: item.type === '2' }"
               >
@@ -133,7 +137,7 @@
             class="btn"
             type="primary"
             size="large"
-            :disabled="!currentContract.length"
+            :disabled="!currentContract.child?.length"
             @click="onSendMsg"
           >
             发送
@@ -146,13 +150,13 @@
       <div class="drawer_container">
         <div class="item" v-for="(item, index) in newMgsList" :key="index">
           <div class="item_header">
-            <span>{{ item[1].address }}</span>
+            <span>{{ item.sms.address }}</span>
             <span>
-              {{ moment(Number(item[1].date)).format('YYYY-MM-DD HH:mm:ss') }}
+              {{ moment(Number(item.sms.date)).format('YYYY-MM-DD HH:mm:ss') }}
             </span>
           </div>
           <div class="item_content">
-            【{{ item.device_name }}】 {{ item[1].body }}
+            【{{ item.device_name }}】 {{ item.sms.body }}
           </div>
         </div>
 
@@ -289,7 +293,7 @@ export default {
       options: [],
       socket: null,
       list: [],
-      currentContract: [],
+      currentContract: {},
       img: require('@/assets/3ea6beec64369c2642b92c6726f1epng.png'),
       newMgsList: []
     }
@@ -297,12 +301,40 @@ export default {
 
   computed: {
     formatList () {
-      return groupBy(
-        this.list
-          .filter((item) => item.address.indexOf(this.searchInput) > -1)
-          .filter((item) => item.device_id.indexOf(this.value) > -1),
-        'address'
+      const mergedData = {}
+
+      // 遍历数据数组，按名称合并所有数据
+      for (const d of this.list) {
+        if (!mergedData[d.address]) {
+          mergedData[d.address] = []
+        }
+        mergedData[d.address].push(d)
+      }
+
+      // 对合并后的数据进行转换和排序
+      const sortedResult = Object.entries(mergedData)
+        .map(([address, values]) => ({
+          address,
+          deviceId: values[0].device_id,
+          child: values.sort(
+            (a, b) => new Date(Number(b.date)) - new Date(Number(a.date))
+          )
+        }))
+        .sort((a, b) => {
+          const aDate = new Date(Number(a.child[0].date))
+          const bDate = new Date(Number(b.child[0].date))
+          return bDate - aDate
+        })
+
+      // 按照子元素的日期排序
+      sortedResult.sort(
+        (a, b) =>
+          new Date(Number(b.child[0].date)) - new Date(Number(a.child[0].date))
       )
+
+      return sortedResult
+        .filter((item) => item.address.indexOf(this.searchInput) > -1)
+        .filter((item) => item.deviceId.indexOf(this.value) > -1)
     }
   },
 
@@ -363,11 +395,12 @@ export default {
 
           ElNotification({
             title: '新消息通知',
-            message: `<strong>设备:</strong><span>${data[1].device_name}</span><br/><strong>号码:</strong><span>${data[1].sms.address}</span><br/><strong>内容:</strong><span>${data[1].sms.body}</span>`,
-            duration: 3000,
+            message: `<strong>设备:</strong> <span>${data[1].device_name}</span><br/><strong>号码:</strong> <span>${data[1].sms.address}</span><br/><strong>内容:</strong> <span>${data[1].sms.body}</span>`,
+            duration: 10000,
             dangerouslyUseHTMLString: true,
             type: 'success'
           })
+          this.reSendMgs()
         }
       } else if (str.indexOf('[') === 9) {
         /**
@@ -404,8 +437,8 @@ export default {
 
     onSendMsg () {
       this.sendMsg(
-        this.currentContract[0].address,
-        this.currentContract[0].device_id,
+        this.currentContract.address,
+        this.currentContract.deviceId,
         this.input
       )
       this.input = ''
@@ -509,7 +542,8 @@ export default {
             orient: 'vertical',
             backgroundColor: 'transparent',
             showDataShadow: false,
-            fillerColor: 'rgba(64, 83, 133, 0.8)'
+            fillerColor: 'rgba(64, 83, 133, 0.8)',
+            zoomLock: true
           },
           {
             zoomLock: true, // 这个开启之后只能通过鼠标左右拉动，不能滚动显示
@@ -572,7 +606,7 @@ export default {
 
       const response = await tanslate(options)
       const text = response.trans_result[0].dst
-      this.currentContract.forEach((item) => {
+      this.currentContract.child.forEach((item) => {
         if (item.address === data.address && item.date === data.date) {
           // this.$set(item, 'trans', text)
           item.trans = text
@@ -601,15 +635,15 @@ export default {
       })
       this.list = this.list.concat(dataList)
 
-      if (this.currentContract.length) {
+      if (this.currentContract.child?.length) {
         const arr = this.list.filter(
-          (item) => item.address === this.currentContract[0].address
+          (item) => item.address === this.currentContract.address
         )
-        const dateArr = this.currentContract.map((item) => item.date)
-        const list = this.currentContract.concat(
+        const dateArr = this.currentContract.child?.map((item) => item.date)
+        const list = this.currentContract.child?.concat(
           arr.filter((item) => dateArr.indexOf(item.date) === -1)
         )
-        this.currentContract = orderBy(list, 'date', 'desc')
+        this.currentContract.child = orderBy(list, 'date', 'desc')
       }
     },
     async init () {
