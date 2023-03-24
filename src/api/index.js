@@ -16,7 +16,16 @@ function login (params) {
   })
 }
 
+function tanslate (params) {
+  return http({
+    url: 'http://api.fanyi.baidu.com/api/trans/vip/translate',
+    method: 'get',
+    params
+  })
+}
+
 export {
   getDeviceList,
-  login
+  login,
+  tanslate
 }

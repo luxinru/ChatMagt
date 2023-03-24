@@ -72,8 +72,6 @@ export default {
           type: 'error'
         })
       }
-
-      console.log('data :>> ', res)
     }
   }
 }

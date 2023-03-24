@@ -48,46 +48,71 @@
 
         <div class="tip">
           <span>最近联系人</span>
-          <el-icon><Refresh /></el-icon>
+          <el-icon @click="onRefres"><Refresh /></el-icon>
         </div>
 
         <div class="chat_container">
-          <div class="item" v-for="(item, index) in contractList" :key="index">
-            <el-avatar class="avatar" :size="50" src="" />
+          <div
+            v-for="(item, index) in formatList"
+            :key="index"
+            class="item"
+            :class="{ active: currentContract[0]?.address === item[0].address }"
+            @click="onContractClick(item)"
+          >
+            <el-avatar class="avatar" :size="50" :src="img" />
             <div class="info">
               <span> {{ item[0].address }}（{{ item.length }}） </span>
               <span>{{ item[0].body }}</span>
-              <span> {{ item[0].date }} </span>
+              <span>
+                {{ moment(Number(item[0].date)).format('YYYY-MM-DD HH:mm:ss') }}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <div class="content">
-        <div class="content_header">
-          <el-avatar class="avatar" :size="40" src="" />
-          <span class="name"> Jason Porter </span>
-        </div>
+        <div class="content_container">
+          <template v-if="currentContract.length">
+            <div class="content_header">
+              <el-avatar class="avatar" :size="40" :src="img" />
+              <span class="name"> {{ currentContract[0].address }} </span>
+            </div>
 
-        <div class="content_chat">
-          <div
-            class="item"
-            v-for="index in 20"
-            :key="index"
-            :class="{ fanzhuan: index % 2 }"
-          >
-            <el-avatar v-if="!(index % 2)" class="avatar" :size="26" src="" />
-            <div class="info">
-              <span class="name">
-                Jason Porter,2023-03-22 10:28:56
-                <img src="@/assets/发送成功.png" alt="" />
-              </span>
+            <div class="content_chat">
+              <div
+                class="item"
+                v-for="(item, index) in currentContract"
+                :key="index"
+                :class="{ fanzhuan: item.type === '2' }"
+              >
+                <el-avatar
+                  v-if="!(item.type === '2')"
+                  class="avatar"
+                  :size="26"
+                  :src="img"
+                />
+                <div class="info">
+                  <span class="name">
+                    {{ item.type === '2' ? '' : item.address }}
+                    ,
+                    {{
+                      moment(Number(item.date)).format('YYYY-MM-DD HH:mm:ss')
+                    }}
+                    <img src="@/assets/fasongchenggong.png" alt="" />
+                  </span>
 
-              <div class="info_chat">
-                Hope to have a chance to have lunch together next time ☺
+                  <div class="info_chat">
+                    {{ item.body }}
+
+                    <div class="translate">
+                      <span @click="onTranslate(item)">翻译</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </div>
 
         <div class="content_footer">
@@ -165,12 +190,15 @@
 
 <script setup>
 import { Search } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 </script>
 
 <script>
-import { getDeviceList } from '@/api'
+import { getDeviceList, tanslate } from '@/api'
 import { groupBy } from 'lodash'
+import moment from 'moment'
+import cryptoJs from 'crypto-js'
+
 export default {
   name: 'Home',
 
@@ -188,7 +216,19 @@ export default {
       options: [],
       socket: null,
       list: [],
-      contractList: {}
+      currentContract: [],
+      img: require('@/assets/3ea6beec64369c2642b92c6726f1epng.png')
+    }
+  },
+
+  computed: {
+    formatList () {
+      return groupBy(
+        this.list
+          .filter((item) => item.address.indexOf(this.input) > -1)
+          .filter((item) => item.device_id.indexOf(this.value) > -1),
+        'address'
+      )
     }
   },
 
@@ -218,7 +258,7 @@ export default {
         this.socket.send('40')
       } else if (str === '40{') {
         this.socket.send(
-          '42["web->android",{"type":"recent-sms","timestamp":"1679588742","sign":"84b4e938d3b7fc557a4775b7dc205976","device":"web"},null]'
+          '42["web->android",{"type":"recent-sms","timestamp":"1679588742","device":"web"},null]'
         )
       } else if (str === '2') {
         this.socket.send('3')
@@ -226,7 +266,6 @@ export default {
       } else {
         const dataStr = event.data.substr(9, event.data.length)
         const data = JSON.parse(dataStr)
-        console.log('data :>> ', data)
         this.formatData(data[1])
       }
     })
@@ -237,6 +276,47 @@ export default {
   },
 
   methods: {
+    moment,
+
+    generateSalt (length) {
+      var chars =
+        '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      var salt = ''
+      for (var i = 0; i < length; i++) {
+        salt += chars[Math.floor(Math.random() * chars.length)]
+      }
+      return salt
+    },
+
+    async onTranslate (data) {
+      const salt = this.generateSalt(10)
+      const appid = '20230323001611962'
+      const q = data.body
+      const secret = 'iSL8VF5avKRQe4vou_Nv'
+      const options = {
+        from: 'auto',
+        to: 'zh',
+        appid,
+        q,
+        salt,
+        sign: cryptoJs.MD5(appid + q + salt + secret)
+      }
+
+      const response = await tanslate(options)
+      console.log('response :>> ', response)
+    },
+
+    onRefres () {
+      ElMessage({
+        message: '刷新成功',
+        type: 'success'
+      })
+    },
+
+    onContractClick (contract) {
+      this.currentContract = contract
+    },
+
     formatData (obj) {
       const dataList = obj.data.map((item) => {
         return {
@@ -245,8 +325,6 @@ export default {
         }
       })
       this.list = this.list.concat(dataList)
-      const objList = groupBy(this.list, 'address')
-      this.contractList = objList
     },
     async init () {
       const res = await getDeviceList()
@@ -260,7 +338,6 @@ export default {
           }
         })
       }
-      console.log('res :>> ', res)
     },
     onOpenMsg () {
       this.isShowDrawer = true
@@ -398,9 +475,9 @@ export default {
         flex-direction: column;
         overflow-y: auto;
 
-        &::-webkit-scrollbar {
-          display: none;
-        }
+        // &::-webkit-scrollbar {
+        //   display: none;
+        // }
 
         .item {
           width: 100%;
@@ -457,6 +534,11 @@ export default {
             }
           }
         }
+
+        .active {
+          border: 1px solid #21aa93;
+          text-decoration: none;
+        }
       }
     }
 
@@ -467,95 +549,116 @@ export default {
       display: flex;
       flex-direction: column;
 
-      .content_header {
+      .content_container {
+        flex: 1 0;
         width: 100%;
-        border-bottom: 1px solid #f5f5f5;
-        padding: 1.5rem 3rem;
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        overflow: hidden;
 
-        .avatar {
-          margin-right: 1rem;
-        }
-
-        .name {
-          flex: 1 0;
-          height: 40px;
+        .content_header {
+          width: 100%;
+          border-bottom: 1px solid #f5f5f5;
+          padding: 1.5rem 3rem;
           display: flex;
           align-items: center;
-          font-size: 1rem;
-          color: #555555;
-          font-weight: 500;
-        }
-      }
-
-      .content_chat {
-        width: 100%;
-        flex: 1 0;
-        overflow-y: scroll;
-        padding: 0 3rem 1rem;
-        display: flex;
-        flex-direction: column-reverse;
-
-        &::-webkit-scrollbar {
-          display: none;
-        }
-
-        .item {
-          margin-top: 10px;
-          display: flex;
-          width: 60%;
 
           .avatar {
-            margin-right: 0.5rem;
+            margin-right: 1rem;
           }
 
-          .info {
-            width: max-content;
+          .name {
+            flex: 1 0;
+            height: 40px;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            font-size: 1rem;
+            color: #555555;
+            font-weight: 500;
+          }
+        }
 
-            .name {
-              font-size: 12px;
-              color: #95aac9;
-              margin: 0 0 5px;
+        .content_chat {
+          width: 100%;
+          flex: 1 0;
+          overflow-y: scroll;
+          padding: 0 3rem 1rem;
+          display: flex;
+          flex-direction: column-reverse;
+
+          &::-webkit-scrollbar {
+            display: none;
+          }
+
+          .item {
+            margin-top: 10px;
+            display: flex;
+            width: 60%;
+
+            .avatar {
+              margin-right: 0.5rem;
+            }
+
+            .info {
+              width: max-content;
               display: flex;
-              align-items: center;
+              flex-direction: column;
 
-              img {
-                height: 12px;
-                margin-left: 5px;
+              .name {
+                font-size: 12px;
+                color: #95aac9;
+                margin: 0 0 5px;
+                display: flex;
+                align-items: center;
+
+                img {
+                  height: 12px;
+                  margin-left: 5px;
+                }
+              }
+
+              .info_chat {
+                width: max-content;
+                background-color: #f5f5f5;
+                max-width: 100%;
+                min-width: 10%;
+                border-radius: 0 15px 15px 15px;
+                font-size: 16px;
+                padding: 1rem;
+                color: #626569;
+
+                .translate {
+                  width: 100%;
+                  border-top: 1px solid rgba(98, 101, 105, 0.3);
+                  margin-top: 10px;
+                  padding-top: 10px;
+                  span {
+                    font-size: 12px;
+                    color: #21aa93;
+                    cursor: pointer;
+                  }
+                }
               }
             }
-
-            .info_chat {
-              width: max-content;
-              background-color: #f5f5f5;
-              max-width: 100%;
-              min-width: 10%;
-              border-radius: 0 15px 15px 15px;
-              font-size: 16px;
-              padding: 1rem;
-              color: #626569;
-            }
-          }
-        }
-
-        .fanzhuan {
-          flex-direction: row-reverse;
-          align-self: flex-end;
-
-          .avatar {
-            margin-right: 0;
-            margin-left: 1rem;
           }
 
-          .info {
-            .name {
-              justify-content: flex-end;
+          .fanzhuan {
+            flex-direction: row-reverse;
+            align-self: flex-end;
+
+            .avatar {
+              margin-right: 0;
+              margin-left: 1rem;
             }
-            .info_chat {
-              border-radius: 15px 0 15px 15px;
+
+            .info {
+              .name {
+                justify-content: flex-end;
+              }
+              .info_chat {
+                align-self: flex-end;
+                border-radius: 15px 0 15px 15px;
+              }
             }
           }
         }
