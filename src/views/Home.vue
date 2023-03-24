@@ -106,7 +106,12 @@
                     {{ item.body }}
 
                     <div class="translate">
-                      <span @click="onTranslate(item)">翻译</span>
+                      <span v-if="!item.trans" @click="onTranslate(item)">
+                        翻译
+                      </span>
+                      <p v-else>
+                        {{ item.trans }}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -303,7 +308,13 @@ export default {
       }
 
       const response = await tanslate(options)
-      console.log('response :>> ', response)
+      const text = response.trans_result[0].dst
+      this.currentContract.forEach((item) => {
+        if (item.address === data.address && item.date === data.date) {
+          // this.$set(item, 'trans', text)
+          item.trans = text
+        }
+      })
     },
 
     onRefres () {
@@ -636,6 +647,11 @@ export default {
                     font-size: 12px;
                     color: #21aa93;
                     cursor: pointer;
+                  }
+
+                  p {
+                    padding: 0;
+                    margin: 0;
                   }
                 }
               }
