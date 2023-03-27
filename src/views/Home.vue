@@ -132,7 +132,15 @@
         </div>
 
         <div class="content_footer">
-          <el-input v-model="input" placeholder="请输入内容" size="large" />
+          <el-input v-model="input" placeholder="请输入内容" size="large">
+            <template #suffix>
+              <span
+                style="color: #21aa93; cursor: pointer"
+                @click="onTranslateInput"
+                >翻译</span
+              >
+            </template>
+          </el-input>
           <el-button
             class="btn"
             type="primary"
@@ -175,7 +183,7 @@
     </el-drawer>
 
     <el-dialog v-model="isShowDialogForm" title="发送短信" style="width: 600px">
-      <el-form :model="form">
+      <el-form :model="form" label-width="70px">
         <el-form-item label="安卓设备">
           <el-select
             v-model="form.device"
@@ -209,6 +217,13 @@
             autocomplete="off"
             placeholder="请输入短信内容"
           />
+        </el-form-item>
+        <el-form-item label="">
+          <span
+            style="color: #21aa93; cursor: pointer"
+            @click="onTranslateInput2"
+            >翻译</span
+          >
         </el-form-item>
       </el-form>
       <template #footer>
@@ -257,11 +272,11 @@ import {
 </script>
 
 <script>
-import { getDeviceList, tanslate } from '@/api'
+import { getDeviceList } from '@/api'
 import { groupBy, orderBy } from 'lodash'
 import moment from 'moment'
-import cryptoJs from 'crypto-js'
 import * as echarts from 'echarts'
+import axios from 'axios'
 
 export default {
   name: 'Home',
@@ -420,12 +435,54 @@ export default {
   methods: {
     moment,
 
+    async onTranslateInput () {
+      if (!this.input) {
+        return ElMessage({
+          message: '请输入内容',
+          type: 'warning'
+        })
+      }
+      const text = await this.translateFun(this.input, '英文')
+      this.input = text
+    },
+
+    async onTranslateInput2 () {
+      if (!this.form.content) {
+        return ElMessage({
+          message: '请输入内容',
+          type: 'warning'
+        })
+      }
+      const text = await this.translateFun(this.form.content, '英文')
+      this.form.content = text
+    },
+
     onClearMsg () {
       this.newMgsList = []
       this.isShowDrawer = false
     },
 
     onSendMsgs () {
+      if (!this.form.device) {
+        return ElMessage({
+          message: '请选择设备',
+          type: 'warning'
+        })
+      }
+
+      if (!this.form.phone) {
+        return ElMessage({
+          message: '请输入手机号',
+          type: 'warning'
+        })
+      }
+
+      if (!this.form.content) {
+        return ElMessage({
+          message: '请输入内容',
+          type: 'warning'
+        })
+      }
       this.sendMsg(this.form.phone, this.form.device, this.form.content)
       this.form = {
         device: '',
@@ -591,27 +648,37 @@ export default {
     },
 
     async onTranslate (data) {
-      const salt = this.generateSalt(10)
-      const appid = '20230323001611962'
-      const q = data.body
-      const secret = 'iSL8VF5avKRQe4vou_Nv'
-      const options = {
-        from: 'auto',
-        to: 'zh',
-        appid,
-        q,
-        salt,
-        sign: cryptoJs.MD5(appid + q + salt + secret)
-      }
-
-      const response = await tanslate(options)
-      const text = response.trans_result[0].dst
+      const text = await this.translateFun(data.body)
       this.currentContract.child.forEach((item) => {
         if (item.address === data.address && item.date === data.date) {
           // this.$set(item, 'trans', text)
           item.trans = text
         }
       })
+    },
+
+    async translateFun (text, lang = '中文') {
+      const apiKey = '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' // 你的key
+
+      const client = axios.create({
+        headers: {
+          Authorization: 'Bearer ' + apiKey
+        }
+      })
+      const params = {
+        prompt: `翻译成${lang}：${text}`,
+        model: 'text-davinci-003',
+        max_tokens: 2048,
+        temperature: 0
+      }
+      // post请求
+      const res = await client.post(
+        'https://api.openai.com/v1/completions',
+        params
+      )
+
+      console.log(res.data.choices[0].text)
+      return res.data.choices[0].text
     },
 
     onRefres () {
