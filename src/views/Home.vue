@@ -365,7 +365,7 @@ export default {
 
   created () {
     this.socket = new WebSocket(
-      'ws://47.243.207.73:3001/socket.io/?EIO=4&transport=websocket'
+      'ws://182.16.5.178:3001/socket.io/?EIO=4&transport=websocket'
     )
   },
 
