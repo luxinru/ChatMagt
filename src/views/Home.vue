@@ -6,6 +6,7 @@
 
       <div class="info">
         <img
+          v-if="isAdmin"
           class="chart"
           src="@/assets/24gf-chartBarUpward.png"
           alt=""
@@ -20,7 +21,7 @@
 
         <el-popover placement="bottom" :width="100" trigger="click">
           <template #reference>
-            <span>admin</span>
+            <span>{{ username }}</span>
           </template>
 
           <div class="exit" @click="onExit">退出登陆</div>
@@ -31,19 +32,28 @@
     <div class="container">
       <div class="chats">
         <div class="chat_header">
-          <el-select
-            v-model="value"
-            clearable
-            class="elselect"
-            placeholder="所有设备"
-          >
-            <el-option
-              v-for="item in options"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
+          <template v-if="isAdmin">
+            <el-select
+              v-model="value"
+              clearable
+              class="elselect"
+              placeholder="所有设备"
+            >
+              <el-option
+                v-for="item in options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </template>
+
+          <template v-else>
+            <span class="elselect">
+              {{ options[0]?.device_name || '暂无设备' }}
+            </span>
+          </template>
+
           <div class="btn" @click="isShowDialogForm = true">新建短信</div>
         </div>
         <el-input
@@ -350,6 +360,14 @@ export default {
       return sortedResult
         .filter((item) => item.address.indexOf(this.searchInput) > -1)
         .filter((item) => item.deviceId.indexOf(this.value) > -1)
+    },
+
+    username () {
+      return this.$route.query.username
+    },
+
+    isAdmin () {
+      return this.username === 'admin'
     }
   },
 
@@ -405,17 +423,32 @@ export default {
          */
         const dataStr = event.data.substr(2, event.data.length)
         const data = JSON.parse(dataStr)
-        if (data[1].sms) {
-          this.newMgsList.push(data[1])
+        if (this.isAdmin) {
+          if (data[1].sms) {
+            this.newMgsList.push(data[1])
 
-          ElNotification({
-            title: '新消息通知',
-            message: `<strong>设备:</strong> <span>${data[1].device_name}</span><br/><strong>号码:</strong> <span>${data[1].sms.address}</span><br/><strong>内容:</strong> <span>${data[1].sms.body}</span>`,
-            duration: 10000,
-            dangerouslyUseHTMLString: true,
-            type: 'success'
-          })
-          this.reSendMgs()
+            ElNotification({
+              title: '新消息通知',
+              message: `<strong>设备:</strong> <span>${data[1].device_name}</span><br/><strong>号码:</strong> <span>${data[1].sms.address}</span><br/><strong>内容:</strong> <span>${data[1].sms.body}</span>`,
+              duration: 10000,
+              dangerouslyUseHTMLString: true,
+              type: 'success'
+            })
+            this.reSendMgs()
+          }
+        } else {
+          if (data[1].sms && data[1].device_id === this.username) {
+            this.newMgsList.push(data[1])
+
+            ElNotification({
+              title: '新消息通知',
+              message: `<strong>设备:</strong> <span>${data[1].device_name}</span><br/><strong>号码:</strong> <span>${data[1].sms.address}</span><br/><strong>内容:</strong> <span>${data[1].sms.body}</span>`,
+              duration: 10000,
+              dangerouslyUseHTMLString: true,
+              type: 'success'
+            })
+            this.reSendMgs()
+          }
         }
       } else if (str.indexOf('[') === 9) {
         /**
@@ -694,7 +727,10 @@ export default {
     },
 
     formatData (obj) {
-      const dataList = obj.data.map((item) => {
+      const listArr = this.isAdmin
+        ? obj.data
+        : obj.data.filter((item) => item.device_id === this.username)
+      const dataList = listArr.map((item) => {
         return {
           ...item,
           device_id: obj.device_id
@@ -717,7 +753,11 @@ export default {
       const res = await getDeviceList()
       this.options = []
       if (res.status) {
-        this.options = res.data.map((item) => {
+        const list =
+          this.username === 'admin'
+            ? res.data
+            : res.data.filter((item) => item.device_id === this.username)
+        this.options = list.map((item) => {
           return {
             value: item.device_id,
             label: item.device_name,
