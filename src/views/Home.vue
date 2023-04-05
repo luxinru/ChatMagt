@@ -382,8 +382,9 @@ export default {
   },
 
   created () {
+    const ip = location.host
     this.socket = new WebSocket(
-      'ws://182.16.5.178:3001/socket.io/?EIO=4&transport=websocket'
+      `ws://${ip}/socket.io/?EIO=4&transport=websocket`
     )
   },
 
