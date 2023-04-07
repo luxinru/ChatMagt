@@ -320,7 +320,10 @@ export default {
       list: [],
       currentContract: {},
       img: require('@/assets/3ea6beec64369c2642b92c6726f1epng.png'),
-      newMgsList: []
+      newMgsList: [],
+      refreshIndex: 0,
+      refreshMgsIndex: 0,
+      loading: null
     }
   },
 
@@ -388,8 +391,8 @@ export default {
     )
   },
 
-  mounted () {
-    this.init()
+  async mounted () {
+    await this.init()
     // 监听WebSocket连接打开事件
     this.socket.addEventListener('open', (event) => {
       console.log('WebSocket连接已打开')
@@ -533,10 +536,12 @@ export default {
         this.input
       )
       this.input = ''
+      this.refreshIndex = 0
+      this.refreshMgsIndex = 0
     },
 
     reSendMgs () {
-      this.list = []
+      // this.list = []
       const date = new Date()
       this.socket.send(
         `42["web->android",{"type":"recent-sms","timestamp":"${
@@ -546,7 +551,7 @@ export default {
     },
 
     sendMsg (phones, deviceId, msg) {
-      const loading = ElLoading.service({
+      this.loading = ElLoading.service({
         lock: true,
         text: 'Loading',
         background: 'rgba(0, 0, 0, 0.7)'
@@ -564,14 +569,11 @@ export default {
       })
 
       ElMessage({
-        message: '发送成功',
+        message: '发送消息任务下发成功',
         type: 'success'
       })
 
-      setTimeout(() => {
-        this.reSendMgs()
-        loading.close()
-      }, 1000 * 3)
+      this.reSendMgs()
     },
 
     initChart () {
@@ -737,7 +739,15 @@ export default {
           device_id: obj.device_id
         }
       })
-      this.list = this.list.concat(dataList)
+
+      const arr = []
+      dataList.forEach(item => {
+        const fined = this.list.find(element => element.body === item.body && element.date === item.date)
+        if (!fined) {
+          arr.push(item)
+        }
+      })
+      this.list = this.list.concat(arr)
 
       if (this.currentContract.child?.length) {
         const arr = this.list.filter(
@@ -748,6 +758,22 @@ export default {
           arr.filter((item) => dateArr.indexOf(item.date) === -1)
         )
         this.currentContract.child = orderBy(list, 'date', 'desc')
+      }
+
+      this.refreshMgsIndex += 1
+
+      if (this.refreshMgsIndex === this.options.length) {
+        if (this.refreshIndex < 4) {
+          this.refreshIndex += 1
+          this.refreshMgsIndex = 0
+          this.reSendMgs()
+        } else {
+          this.refreshIndex = 0
+          this.refreshMgsIndex = 0
+          if (this.loading) {
+            this.loading.close()
+          }
+        }
       }
     },
     async init () {
