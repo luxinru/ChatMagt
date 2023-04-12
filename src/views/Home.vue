@@ -316,6 +316,7 @@ export default {
       input: '',
       value: '',
       options: [],
+      sourceOptions: [],
       socket: null,
       list: [],
       currentContract: {},
@@ -527,6 +528,8 @@ export default {
         content: ''
       }
       this.isShowDialogForm = false
+      this.refreshIndex = 0
+      this.refreshMgsIndex = 0
     },
 
     onSendMsg () {
@@ -673,16 +676,6 @@ export default {
       })
     },
 
-    generateSalt (length) {
-      var chars =
-        '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-      var salt = ''
-      for (var i = 0; i < length; i++) {
-        salt += chars[Math.floor(Math.random() * chars.length)]
-      }
-      return salt
-    },
-
     async onTranslate (data) {
       const text = await this.translateFun(data.body)
       this.currentContract.child.forEach((item) => {
@@ -718,6 +711,13 @@ export default {
     },
 
     onRefres () {
+      this.loading = ElLoading.service({
+        lock: true,
+        text: 'Loading',
+        background: 'rgba(0, 0, 0, 0.7)'
+      })
+      this.refreshIndex = 0
+      this.refreshMgsIndex = 0
       this.reSendMgs()
       ElMessage({
         message: '刷新成功',
@@ -741,8 +741,10 @@ export default {
       })
 
       const arr = []
-      dataList.forEach(item => {
-        const fined = this.list.find(element => element.body === item.body && element.date === item.date)
+      dataList.forEach((item) => {
+        const fined = this.list.find(
+          (element) => element.body === item.body && element.date === item.date
+        )
         if (!fined) {
           arr.push(item)
         }
@@ -760,18 +762,22 @@ export default {
         this.currentContract.child = orderBy(list, 'date', 'desc')
       }
 
-      this.refreshMgsIndex += 1
+      /**
+       * 有两个值，一个值是5次(refreshIndex)，一个值是sourceOptions的长度(refreshMgsIndex)
+       * 每调用这个方法sourceOptions的长度的次数等于1次，5次之后停止调用
+       */
+      if (this.refreshMgsIndex < this.sourceOptions.length && this.refreshIndex < 5) {
+        this.refreshMgsIndex += 1
 
-      if (this.refreshMgsIndex === this.options.length) {
-        if (this.refreshIndex < 4) {
-          this.refreshIndex += 1
-          this.refreshMgsIndex = 0
-          this.reSendMgs()
-        } else {
-          this.refreshIndex = 0
-          this.refreshMgsIndex = 0
-          if (this.loading) {
-            this.loading.close()
+        if (this.refreshMgsIndex === this.sourceOptions.length) {
+          if (this.refreshIndex === 4) {
+            if (this.loading) {
+              this.loading.close()
+            }
+          } else {
+            this.refreshIndex += 1
+            this.refreshMgsIndex = 0
+            this.reSendMgs()
           }
         }
       }
@@ -779,7 +785,9 @@ export default {
     async init () {
       const res = await getDeviceList()
       this.options = []
+      this.sourceOptions = []
       if (res.status) {
+        this.sourceOptions = res.data
         const list =
           this.username === 'admin'
             ? res.data
